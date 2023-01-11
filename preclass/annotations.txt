@@ -1,0 +1,3 @@
+https://developer.chrome.com/articles/fetch-streaming-requests/
+https://www.kaggle.com/datasets/danielalbarracinm/list-of-anime-from-1990-to-2022?resource=download
+https://www.tpeczek.com/2019/04/fetch-api-streams-api-ndjson-and-aspnet.html
