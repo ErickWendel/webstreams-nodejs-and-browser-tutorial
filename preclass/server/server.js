@@ -1,15 +1,13 @@
-/*
-echo "id,name,desc,age" > big.csv
-for i in `seq 1 1500`; do node -e "process.stdout.write('$i,erick-$i,'+'$i-text'.repeat(1e5)+',$i\n')" >> big.csv;done
-*/
 import { createServer } from 'node:http'
 import { createReadStream } from 'node:fs'
+import { setTimeout } from 'node:timers/promises'
+import { Transform, Readable } from 'node:stream'
+import { TransformStream, WritableStream } from 'node:stream/web'
 import csvtojson from 'csvtojson'
-import { Transform } from 'node:stream'
 
 const PORT = 3000
 // curl -N localhost:3000
-createServer((request, response) => {
+createServer(async (request, response) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': '*',
@@ -22,15 +20,16 @@ createServer((request, response) => {
 
   let items = 0
   request.once('close', () => console.log('connection was closed!', items))
-  createReadStream('./animeflv.csv')
-    .pipe(csvtojson())
-    .pipe(Transform({
-      transform(chunk, enc, cb) {
-        items++
-        const d = JSON.parse(chunk)
-        setTimeout(() => {
-          cb(
-            null,
+
+  // const d = (await r.getReader().read()).value
+  // console.log('d', Buffer.from(d).toString('utf8'))
+  Readable.toWeb(createReadStream('./animeflv.csv'))
+    .pipeThrough(Transform.toWeb(csvtojson()))
+    .pipeThrough(
+      new TransformStream({
+        transform(chunk, controller) {
+          const d = JSON.parse(Buffer.from(chunk))
+          controller.enqueue(
             JSON.stringify({
               title: d.title,
               description: d.description,
@@ -38,14 +37,23 @@ createServer((request, response) => {
               image: d.image
             }).concat('\n')
           )
-        }, 200)
-
-      }
-    }))
-    .pipe(response)
+        },
+      })
+    )
+    .pipeTo(
+      new WritableStream({
+        async write(chunk) {
+          await setTimeout(200)
+          items++
+          response.write(chunk)
+        },
+        close() {
+          response.end()
+        }
+      })
+    )
 
   response.writeHead(200, headers)
-
 })
   .listen(PORT)
   .on('listening', _ => console.log('server running at ', PORT))

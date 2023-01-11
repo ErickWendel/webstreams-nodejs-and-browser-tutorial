@@ -1,5 +1,6 @@
 const API_URL = 'http://localhost:3000'
-async function* startConsumingAPI(signal) {
+
+async function consumeAPI(signal) {
   const response = await fetch(API_URL, {
     signal
   })
@@ -7,16 +8,8 @@ async function* startConsumingAPI(signal) {
   const reader = response.body
     .pipeThrough(new TextDecoderStream())
     .pipeThrough(parseNDJSON())
-    .getReader()
 
-  let done = false
-  do {
-    const res = await reader.read()
-    done = res.done
-    if (done) break
-    yield res.value
-  }
-  while (!done)
+  return reader
 }
 
 function parseNDJSON() {
@@ -38,37 +31,41 @@ function parseNDJSON() {
   })
 }
 
-function appendToHTML({ title, description,url_anime, image }, el) {
-  const card = `
-  <article>
-    <div class="text">
-      <h3>${title}</h3>
-      <p>${description.slice(0, 100)}</p>
-      <a href="${url_anime}">Here's why</a>
-    </div>
-  </article>
-  `
-  el.innerHTML += card
+function appendToHTML(el) {
+  return new WritableStream({
+    async write({ title, description, url_anime }) {
+      const card = `
+        <article>
+          <div class="text">
+            <h3>[${++counter}] ${title}</h3>
+            <p>${description.slice(0, 100)}</p>
+            <a href="${url_anime}">Here's why</a>
+          </div>
+        </article>
+        `
+      el.innerHTML += card
+    },
+    abort(reason) {
+      console.log('aborted**', reason)
+    }
+  })
 }
 
-const [start, stop, cards] = ['Start', 'Stop', 'cards'].map(id => document.getElementById(id))
+const [
+  start,
+  stop,
+  cards
+] = ['Start', 'Stop', 'cards']
+  .map(
+    id => document.getElementById(id)
+  )
 
 let abortController = new AbortController()
+let counter = 0
+
 start.addEventListener('click', async () => {
-  const it = startConsumingAPI(abortController.signal)
-  let counter = 0
-  try {
-    for await (const item of it) {
-      counter++
-      console.log('item', counter, item.title)
-      appendToHTML(item, cards)
-      // if (counter >= 10) {
-      //   abortController.abort()
-      // }
-    }
-  } catch (error) {
-    if (!error.message.includes('aborted')) throw error
-  }
+  const reader = await consumeAPI(abortController.signal)
+  reader.pipeTo(appendToHTML(cards))
 })
 
 stop.addEventListener('click', () => {
