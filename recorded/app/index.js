@@ -67,8 +67,13 @@ const [
 
 let abortController = new AbortController()
 start.addEventListener('click', async () => {
-  const readable = await consumeAPI(abortController.signal)
-  readable.pipeTo(appendToHTML(cards))
+  try {
+    const readable = await consumeAPI(abortController.signal)
+    // add signal and await to handle the abortError exception after abortion
+    await readable.pipeTo(appendToHTML(cards), { signal: abortController.signal })
+  } catch (error) {
+    if (!error.message.includes('abort')) throw error
+  }
 })
 
 stop.addEventListener('click', () => {
