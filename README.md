@@ -1,4 +1,4 @@
-# webstreams-ondemand-fetch
+# Webstreams nodejs and browser tutorial (ptbr)
 
 ## About
 Welcome, this repo is part of my [**youtube video**](https://youtu.be/-IpRYbL4yMk) about **How to read 10GB of JSON in the frontend without crashing the screen - Webstreams 101 (pt-br)**
